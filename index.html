@@ -2509,6 +2509,9 @@ renderDashboard();
 <!-- Mobile "más" drawer -->
 <div id="mob-more-drawer" style="display:none;position:fixed;bottom:60px;left:0;right:0;background:var(--dark);border-top:1px solid var(--border);z-index:199;padding:12px">
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+    <button onclick="goPage('templates',null);toggleMobMore()" class="mob-drawer-btn">
+      <span style="font-size:22px">📋</span>Plantillas
+    </button>
     <button onclick="goPage('exercises',null);toggleMobMore()" class="mob-drawer-btn">
       <span style="font-size:22px">💪</span>Ejercicios
     </button>
