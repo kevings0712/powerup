@@ -836,7 +836,7 @@ select.fi { cursor:pointer; }
           <h2 style="font-family:var(--font-h);font-size:26px;font-weight:900">Base de Ejercicios</h2>
           <p style="font-size:13px;color:var(--muted);margin-top:2px" id="ex-count"></p>
         </div>
-        <button class="btn btn-red" onclick="openModal('modal-new-exercise')">+ Ejercicio</button>
+        <button class="btn btn-red" onclick="openNewEx()">+ Ejercicio</button>
       </div>
       <div class="swrap"><span class="si">🔍</span><input class="fi" id="ex-search" placeholder="Buscar ejercicio..." oninput="renderExercises()"></div>
       <!-- Filter chips -->
@@ -1903,6 +1903,16 @@ function renderExercises() {
   }).join('')||'<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted)">Sin ejercicios</td></tr>';
 }
 
+function openNewEx() {
+  eid = null;
+  document.getElementById('ex-modal-title').textContent = 'Nuevo Ejercicio';
+  document.getElementById('ex-name-inp').value = '';
+  document.getElementById('ex-muscle-inp').value = 'Pecho';
+  document.getElementById('ex-equip-inp').value = 'Barra';
+  document.getElementById('ex-rm-inp').value = '';
+  document.getElementById('ex-notes-inp').value = '';
+  openModal('modal-new-exercise');
+}
 function openEditEx(id) {
   const e = db.exercises.find(x=>x.id===id); if(!e) return;
   eid=id;
@@ -1924,8 +1934,10 @@ function saveExercise() {
     rm: parseFloat(document.getElementById('ex-rm-inp').value)||0,
     notes: document.getElementById('ex-notes-inp').value.trim()
   };
-  if(eid) { Object.assign(db.exercises.find(e=>e.id===eid), data); eid=null; }
-  else db.exercises.push({id:uid(),...data});
+  const existing = eid ? db.exercises.find(e=>e.id===eid) : null;
+  if(existing) { Object.assign(existing, data); }
+  else { db.exercises.push({id:uid(),...data}); }
+  eid = null;
   saveDB(); cm('modal-new-exercise'); renderExercises();
 }
 function deleteEx(id) {
@@ -2266,8 +2278,10 @@ function updPrev(){
 function saveRec(){
   const name=document.getElementById('ri-name').value.trim();if(!name){alert('Ponle nombre');return;}
   const ingredients=getRD(),notes=document.getElementById('ri-notes').value.trim();
-  if(eid){const r=getRec(eid);r.name=name;r.ingredients=ingredients;r.notes=notes;}
+  const existingR = eid ? getRec(eid) : null;
+  if(existingR){existingR.name=name;existingR.ingredients=ingredients;existingR.notes=notes;}
   else db.recipes.push({id:uid(),name,ingredients,notes});
+  eid = null;
   saveDB();cm('modal-rec');renderRecs();
 }
 
@@ -2307,7 +2321,10 @@ function saveIng(){
     prot:parseFloat(document.getElementById('ii-prot').value)||0,
     carb:parseFloat(document.getElementById('ii-carb').value)||0,
     fat:parseFloat(document.getElementById('ii-fat').value)||0};
-  if(eid)Object.assign(getIng(eid),data);else db.ingredients.push({id:uid(),...data});
+  const existing = eid ? getIng(eid) : null;
+  if(existing) Object.assign(existing, data);
+  else db.ingredients.push({id:uid(),...data});
+  eid = null;
   saveDB();cm('modal-ing');renderIngs();
 }
 function delIng(id){
