@@ -655,6 +655,9 @@ select.fi { cursor:pointer; }
     <button class="sb-item" onclick="goPage('workout-today',this)">
       <span class="sb-icon">🏋️</span><span class="sb-label">Hoy</span>
     </button>
+    <button class="sb-item" onclick="goPage('splits',this)">
+      <span class="sb-icon">🗓️</span><span class="sb-label">Splits</span>
+    </button>
     <button class="sb-item" onclick="goPage('templates',this)">
       <span class="sb-icon">📋</span><span class="sb-label">Plantillas</span>
     </button>
@@ -800,6 +803,18 @@ select.fi { cursor:pointer; }
         <div id="session-exercises"></div>
         <button class="btn btn-card" onclick="openAddExModal()" style="width:100%;justify-content:center;margin-top:8px">+ Agregar ejercicio</button>
       </div>
+    </div>
+
+    <!-- ══ SPLITS ══ -->
+    <div class="page" id="page-splits">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="font-family:var(--font-h);font-size:26px;font-weight:900">Splits</h2>
+          <p style="font-size:13px;color:var(--muted);margin-top:2px">Asigna plantillas a cada día de la semana</p>
+        </div>
+        <button class="btn btn-red" onclick="openNewSplit()">+ Nuevo Split</button>
+      </div>
+      <div id="splits-list"></div>
     </div>
 
     <!-- ══ PLANTILLAS ══ -->
@@ -1217,6 +1232,7 @@ function f1(n) { return Math.round(n*10)/10; }
 
 // ── NAVIGATION ──
 const pageTitles = {
+  'splits':         ['Splits', 'Tu programa semanal'],
   'dashboard': ['Dashboard', 'Bienvenido de vuelta 💪'],
   'workout-today': ['Hoy', 'Sesión de entrenamiento'],
   'templates': ['Plantillas', 'Rutinas guardadas'],
@@ -1238,6 +1254,7 @@ function goPage(name, btn) {
   document.getElementById('topbar-sub').textContent = t[1];
   // Render on navigate
   const renders = {
+    'splits':        renderSplits,
     'dashboard': renderDashboard,
     'templates': renderTemplates,
     'exercises': renderExercises,
@@ -2340,6 +2357,109 @@ function exportJSON(){
 }
 
 // ════════════════════════════════════════
+//  SPLITS
+// ════════════════════════════════════════
+function renderSplits() {
+  if (!db.splits) db.splits = [];
+  const el = document.getElementById('splits-list');
+  if (!db.splits.length) {
+    el.innerHTML = `<div class="empty"><div class="ico">🗓️</div><p style="margin-bottom:16px">No hay splits creados</p>
+      <button class="btn btn-red" onclick="openNewSplit()">+ Crear mi primer split</button></div>`;
+    return;
+  }
+  el.innerHTML = db.splits.map(sp => {
+    const dayRows = DAYS_OF_WEEK.map(d => {
+      const tplId = sp.days[d];
+      const tpl = tplId ? db.templates.find(t => t.id === tplId) : null;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+        <div style="font-family:var(--font-h);font-size:13px;font-weight:800;color:var(--muted);width:36px">${d.slice(0,3).toUpperCase()}</div>
+        <div style="flex:1;font-size:13px;font-weight:600">${tpl ? tpl.name : '<span style="color:var(--muted)">Descanso</span>'}</div>
+        ${tpl ? `<span class="chip chip-red" style="font-size:10px">${tpl.type}</span>` : ''}
+      </div>`;
+    }).join('');
+    const activeBadge = sp.active ? `<span class="chip chip-green" style="font-size:11px">● Activo</span>` : '';
+    return `<div class="card card-p" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-family:var(--font-h);font-size:20px;font-weight:900">${sp.name}</div>
+          ${sp.desc ? `<div style="font-size:12px;color:var(--muted);margin-top:2px">${sp.desc}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          ${activeBadge}
+          ${!sp.active ? `<button class="btn btn-green btn-sm" onclick="activateSplit('${sp.id}')">Activar</button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="editSplit('${sp.id}')">Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSplit('${sp.id}')">✕</button>
+        </div>
+      </div>
+      ${dayRows}
+    </div>`;
+  }).join('');
+}
+
+function openNewSplit() {
+  if (!db.splits) db.splits = [];
+  eid = null;
+  document.getElementById('split-modal-title').textContent = 'Nuevo Split';
+  document.getElementById('split-name-inp').value = '';
+  document.getElementById('split-desc-inp').value = '';
+  renderSplitDayRows();
+  openModal('modal-split');
+}
+
+function editSplit(id) {
+  const sp = db.splits.find(s => s.id === id); if (!sp) return;
+  eid = id;
+  document.getElementById('split-modal-title').textContent = 'Editar Split';
+  document.getElementById('split-name-inp').value = sp.name;
+  document.getElementById('split-desc-inp').value = sp.desc || '';
+  renderSplitDayRows(sp.days || {});
+  openModal('modal-split');
+}
+
+function renderSplitDayRows(days = {}) {
+  const tplOpts = db.templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  document.getElementById('split-day-rows').innerHTML = DAYS_OF_WEEK.map(d => `
+    <div style="display:grid;grid-template-columns:50px 1fr;gap:8px;margin-bottom:8px;align-items:center">
+      <div style="font-family:var(--font-h);font-size:14px;font-weight:800;color:var(--muted)">${d.slice(0,3).toUpperCase()}</div>
+      <select class="fi" id="split-day-${d}" style="font-size:13px">
+        <option value="">— Descanso —</option>${tplOpts}
+      </select>
+    </div>
+  `).join('');
+  // Set existing values
+  DAYS_OF_WEEK.forEach(d => {
+    const sel = document.getElementById(`split-day-${d}`);
+    if (sel && days[d]) sel.value = days[d];
+  });
+}
+
+function saveSplit() {
+  const name = document.getElementById('split-name-inp').value.trim();
+  if (!name) { alert('Ponle nombre al split'); return; }
+  const days = {};
+  DAYS_OF_WEEK.forEach(d => {
+    const val = document.getElementById(`split-day-${d}`)?.value;
+    if (val) days[d] = val;
+  });
+  const data = { name, desc: document.getElementById('split-desc-inp').value.trim(), days, active: false };
+  if (!db.splits) db.splits = [];
+  if (eid) { Object.assign(db.splits.find(s => s.id === eid), data); eid = null; }
+  else db.splits.push({ id: uid(), ...data });
+  saveDB(); cm('modal-split'); renderSplits();
+}
+
+function activateSplit(id) {
+  db.splits.forEach(s => s.active = s.id === id);
+  saveDB(); renderSplits();
+}
+
+function deleteSplit(id) {
+  if (!confirm('¿Eliminar este split?')) return;
+  db.splits = db.splits.filter(s => s.id !== id);
+  saveDB(); renderSplits();
+}
+
+// ════════════════════════════════════════
 //  SEEDS
 // ════════════════════════════════════════
 function seedExercises(){return[
@@ -2509,6 +2629,9 @@ renderDashboard();
 <!-- Mobile "más" drawer -->
 <div id="mob-more-drawer" style="display:none;position:fixed;bottom:60px;left:0;right:0;background:var(--dark);border-top:1px solid var(--border);z-index:199;padding:12px">
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+    <button onclick="goPage('splits',null);toggleMobMore()" class="mob-drawer-btn">
+      <span style="font-size:22px">🗓️</span>Splits
+    </button>
     <button onclick="goPage('templates',null);toggleMobMore()" class="mob-drawer-btn">
       <span style="font-size:22px">📋</span>Plantillas
     </button>
@@ -2551,6 +2674,27 @@ document.addEventListener('click', e => {
   }
 });
 </script>
+
+<!-- Modal: Split -->
+<div class="modal-bg" id="modal-split">
+  <div class="modal">
+    <div class="mhdr"><span class="mtitle" id="split-modal-title">Nuevo Split</span><button class="xbtn" onclick="cm('modal-split')">×</button></div>
+    <div class="mbody">
+      <div class="g2">
+        <div class="fg"><label class="fl">Nombre</label><input class="fi" id="split-name-inp" placeholder="Ej: Push Pull Legs"></div>
+        <div class="fg"><label class="fl">Descripción</label><input class="fi" id="split-desc-inp" placeholder="Opcional"></div>
+      </div>
+      <div class="fg">
+        <label class="fl">Asignar plantilla por día</label>
+        <div style="background:var(--card2);border-radius:10px;padding:14px" id="split-day-rows"></div>
+      </div>
+      <div class="fa">
+        <button class="btn btn-ghost" onclick="cm('modal-split')">Cancelar</button>
+        <button class="btn btn-red" onclick="saveSplit()">Guardar Split</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
