@@ -488,7 +488,7 @@ select.fi { cursor:pointer; }
   .day-pill-num { font-size: 17px; }
   .wgrid { min-width: 580px; }
   .template-grid, .rgrid { grid-template-columns: 1fr; }
-  .ws-set-row { grid-template-columns: 22px 1fr 1fr 1fr 1fr 32px; gap: 4px; padding: 8px 10px; }
+  .ws-set-row { grid-template-columns: 20px 46px 1fr 1fr 1fr 28px; gap: 4px; padding: 8px 10px; }
   .ws-set-row.header span { font-size: 9px; }
   .ws-set-input { font-size: 12px; padding: 5px 4px; }
   .wsum { grid-template-columns: repeat(2,1fr); }
@@ -575,9 +575,9 @@ select.fi { cursor:pointer; }
 .ws-sets { padding: 0; }
 .ws-set-row {
   display: grid;
-  grid-template-columns: 28px 1fr 1fr 1fr 1fr 80px;
-  gap: 8px;
-  padding: 10px 18px;
+  grid-template-columns: 24px 54px 1fr 1fr 1fr 32px;
+  gap: 6px;
+  padding: 9px 14px;
   border-bottom: 1px solid var(--border);
   align-items: center;
 }
@@ -841,12 +841,7 @@ select.fi { cursor:pointer; }
       <div class="swrap"><span class="si">🔍</span><input class="fi" id="ex-search" placeholder="Buscar ejercicio..." oninput="renderExercises()"></div>
       <!-- Filter chips -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="muscle-filters"></div>
-      <div class="card" style="overflow:hidden">
-        <table class="ex-table" id="ex-table">
-          <thead><tr><th>Ejercicio</th><th>Músculo</th><th>Equipo</th><th>1RM</th><th></th></tr></thead>
-          <tbody id="ex-tbody"></tbody>
-        </table>
-      </div>
+      <div id="ex-list"></div>
     </div>
 
     <!-- ══ HISTORIAL ══ -->
@@ -1483,20 +1478,23 @@ function renderSessionExercises() {
   container.innerHTML = activeSession.exercises.map((ae, ei) => {
     const ex = db.exercises.find(e => e.id === ae.exId) || {name: 'Ejercicio', muscle: '', rm: 0};
     const color = MUSCLE_COLORS[ex.muscle] || '#666';
-    const setsHtml = ae.sets.map((set, si) => `
+    const setsHtml = ae.sets.map((set, si) => {
+      const pctVal = set.pct || '';
+      const weightVal = set.weight || '';
+      return `
       <div class="ws-set-row" id="setrow-${ei}-${si}">
         <div class="ws-set-num">${set.setNum}</div>
-        <input class="ws-set-input" type="number" placeholder="${ex.rm ? Math.round(ex.rm*.75) : '—'}" value="${set.weight}"
-          oninput="updateSet(${ei},${si},'weight',this.value)" min="0" step="0.5">
-        <input class="ws-set-input" type="number" placeholder="—" value="${set.reps}"
+        <input class="ws-set-input" type="number" placeholder="%" value="${pctVal}" min="1" max="100"
+          oninput="updatePct(${ei},${si},this.value,${ex.rm||0})" style="font-size:12px">
+        <input class="ws-set-input" type="number" placeholder="kg" value="${weightVal}"
+          oninput="updateSet(${ei},${si},'weight',this.value)" min="0" step="0.5" id="wi-${ei}-${si}">
+        <input class="ws-set-input" type="number" placeholder="reps" value="${set.reps||''}"
           oninput="updateSet(${ei},${si},'reps',this.value)" min="0">
-        <input class="ws-set-input" type="number" placeholder="—" value="${set.rpe}"
+        <input class="ws-set-input" type="number" placeholder="RPE" value="${set.rpe||''}"
           oninput="updateSet(${ei},${si},'rpe',this.value)" min="1" max="10" step="0.5">
-        <input class="ws-set-input" type="number" placeholder="—" value="${set.rir}"
-          oninput="updateSet(${ei},${si},'rir',this.value)" min="0" max="5">
         <button class="ws-set-done ${set.done?'done':''}" onclick="toggleSetDone(${ei},${si})">✓</button>
       </div>
-    `).join('');
+    `}).join('');
     const noteVal = ae.note || '';
     return `<div class="ws-exercise">
       <div class="ws-ex-hdr" style="border-left:3px solid ${color}">
@@ -1509,7 +1507,7 @@ function renderSessionExercises() {
       </div>
       <div class="ws-sets">
         <div class="ws-set-row header">
-          <span>#</span><span>Peso kg</span><span>Reps</span><span>RPE</span><span>RIR</span><span>✓</span>
+          <span>#</span><span>% RM</span><span>Peso kg</span><span>Reps</span><span>RPE</span><span>✓</span>
         </div>
         ${setsHtml}
       </div>
@@ -1529,6 +1527,16 @@ function renderSessionExercises() {
 function updateSet(ei, si, field, val) {
   if(!activeSession) return;
   activeSession.exercises[ei].sets[si][field] = val;
+}
+function updatePct(ei, si, pct, rm) {
+  if(!activeSession) return;
+  activeSession.exercises[ei].sets[si].pct = pct;
+  if(rm && pct) {
+    const calculated = Math.round(rm * (parseFloat(pct)/100) * 2) / 2; // round to nearest 0.5kg
+    activeSession.exercises[ei].sets[si].weight = calculated;
+    const inp = document.getElementById(`wi-${ei}-${si}`);
+    if(inp) inp.value = calculated;
+  }
 }
 function updateExNote(ei, val) {
   if(!activeSession) return;
@@ -1886,21 +1894,31 @@ function renderExercises() {
     `<span class="chip ${(m==='Todos'&&!activeFilter)||(m===activeFilter)?'chip-red':'chip-blue'}" style="cursor:pointer;font-size:12px;padding:5px 12px"
       onclick="activeFilter=${m==='Todos'?'null':`'${m}'`};renderExercises()">${m}</span>`
   ).join('');
-  document.getElementById('ex-tbody').innerHTML = list.map(e => {
-    const color = MUSCLE_COLORS[e.muscle]||'#666';
-    const rm1 = e.rm ? `${e.rm}kg` : '—';
-    const est75 = e.rm ? `@75%: ${Math.round(e.rm*.75)}kg` : '';
-    return `<tr>
-      <td><div class="ex-name">${e.name}</div>${e.notes?`<div class="ex-muscle">${e.notes.slice(0,40)}...</div>`:''}</td>
-      <td><span class="chip" style="background:rgba(255,255,255,.06);color:${color}">${e.muscle}</span></td>
-      <td><span class="tag">${e.equip||'—'}</span></td>
-      <td><strong style="color:var(--yellow)">${rm1}</strong>${est75?`<div style="font-size:10px;color:var(--muted)">${est75}</div>`:''}</td>
-      <td style="text-align:right;white-space:nowrap">
-        <button class="btn btn-ghost btn-xs" onclick="openEditEx('${e.id}')">✏️</button>
-        <button class="btn btn-danger btn-xs" onclick="deleteEx('${e.id}')">✕</button>
-      </td>
-    </tr>`;
-  }).join('')||'<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted)">Sin ejercicios</td></tr>';
+  if(!list.length) {
+    document.getElementById('ex-list').innerHTML = '<div class="empty"><div class="ico">💪</div><p>Sin ejercicios</p></div>';
+    return;
+  }
+  document.getElementById('ex-list').innerHTML = `<div style="display:flex;flex-direction:column;gap:8px">` +
+    list.map(e => {
+      const color = MUSCLE_COLORS[e.muscle]||'#666';
+      const rm1 = e.rm ? `${e.rm}kg` : '—';
+      return `<div class="card" style="padding:14px 16px;border-left:3px solid ${color}">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.name}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px">
+              <span class="chip" style="background:rgba(255,255,255,.06);color:${color};font-size:10px">${e.muscle}</span>
+              <span class="tag" style="font-size:10px">${e.equip||'—'}</span>
+              <span style="font-size:11px;font-weight:700;color:var(--yellow)">1RM: ${rm1}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-ghost btn-xs" onclick="openEditEx('${e.id}')">✏️ Editar</button>
+            <button class="btn btn-danger btn-xs" onclick="deleteEx('${e.id}')">✕</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('') + `</div>`;
 }
 
 function openNewEx() {
