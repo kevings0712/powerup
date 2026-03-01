@@ -514,6 +514,24 @@ select.fi { cursor:pointer; }
   }
   .mob-nav-item.active { color: var(--red); }
   .mob-nav-item .mob-icon { font-size: 20px; }
+  .mob-drawer-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted2);
+    cursor: pointer;
+    font-family: var(--font);
+    transition: all .15s;
+    width: 100%;
+  }
+  .mob-drawer-btn:active { background: var(--card2); color: var(--text); }
 }
 @media (min-width: 769px) {
   .mob-nav { display: none !important; }
@@ -2490,15 +2508,22 @@ renderDashboard();
 
 <!-- Mobile "más" drawer -->
 <div id="mob-more-drawer" style="display:none;position:fixed;bottom:60px;left:0;right:0;background:var(--dark);border-top:1px solid var(--border);z-index:199;padding:12px">
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
-    ${[
-      ['🗓️','Split','split'],['💪','Ejercicios','exercises'],
-      ['📈','Historial','history'],['🥦','Ingredientes','nut-ingredients'],
-      ['🍽️','Recetas','nut-recipes'],['📊','Analytics','analytics']
-    ].map(([ico,lbl,page])=>`
-    <button onclick="goPage('${page}',null);toggleMobMore()" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11px;color:var(--muted2);cursor:pointer;font-family:var(--font);font-weight:600">
-      <span style="font-size:20px">${ico}</span>${lbl}
-    </button>`).join('')}
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+    <button onclick="goPage('exercises',null);toggleMobMore()" class="mob-drawer-btn">
+      <span style="font-size:22px">💪</span>Ejercicios
+    </button>
+    <button onclick="goPage('history',null);toggleMobMore()" class="mob-drawer-btn">
+      <span style="font-size:22px">📈</span>Historial
+    </button>
+    <button onclick="goPage('nut-ingredients',null);toggleMobMore()" class="mob-drawer-btn">
+      <span style="font-size:22px">🥦</span>Ingredientes
+    </button>
+    <button onclick="goPage('nut-recipes',null);toggleMobMore()" class="mob-drawer-btn">
+      <span style="font-size:22px">🍽️</span>Recetas
+    </button>
+    <button onclick="goPage('analytics',null);toggleMobMore()" class="mob-drawer-btn">
+      <span style="font-size:22px">📊</span>Analytics
+    </button>
   </div>
 </div>
 
